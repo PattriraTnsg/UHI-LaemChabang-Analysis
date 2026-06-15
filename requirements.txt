@@ -1,0 +1,32 @@
+# ══════════════════════════════════════════════════════════════
+#  requirements.txt — UHI Analysis Dashboard (Windows-compatible)
+#  ติดตั้งด้วย: pip install -r requirements.txt
+#
+#  ⚠️  อย่าใส่ GDAL ตรงๆ บน Windows — ให้ใช้ rasterio wheel
+#      ที่ bundle GDAL มาให้แล้วแทน
+# ══════════════════════════════════════════════════════════════
+
+# ── Core UI ───────────────────────────────────────────────────
+streamlit>=1.35.0
+
+# ── Geospatial (rasterio wheel มี GDAL built-in อยู่แล้ว) ───
+rasterio>=1.3.9
+pyproj>=3.6.0
+
+# ── Interactive Map ───────────────────────────────────────────
+folium>=0.16.0
+streamlit-folium>=0.20.0
+
+# ── AI / Machine Learning ─────────────────────────────────────
+torch>=2.2.0
+torchvision>=0.17.0
+transformers>=4.40.0
+Pillow>=10.0.0
+
+# ── Data & Visualization ──────────────────────────────────────
+numpy>=1.26.0
+matplotlib>=3.8.0
+
+# ── GEE ──────────────────────────────────────
+earthengine-api>=0.1.400
+requests>=2.31.0

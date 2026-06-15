@@ -1,0 +1,19 @@
+# Virtual Environment
+.venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Streamlit local credentials & secrets
+.streamlit/secrets.toml
+
+# GIS/Data files (เผื่ออนาคตคุณโหลดไฟล์ใหญ่ๆ มาพักไว้ในโฟลเดอร์นี้)
+*.gtif
+*.tif
+*.shp
+*.dbf
+*.prj
+*.shx
