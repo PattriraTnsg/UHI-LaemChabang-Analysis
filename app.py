@@ -14,19 +14,19 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # IMPORTS
 # ─────────────────────────────────────────────────────────────────────────────
-import streamlit as st
-import numpy as np
-import io, base64, os, warnings, json
+import streamlit as st #ใช้สำหรับสร้างหน้า Web Dashboard
+import numpy as np #ใช้จัดการข้อมูลตัวเลขและเมทริกซ์ภาพ
+import io, base64, os, warnings, json #แปลงไฟล์ภาพและไฟล์ PDF ให้อยู่ในรูปแบบ "ความจำชั่วคราว (Memory)" แทนที่จะเซฟลงเครื่องตรงๆ เพื่อให้ User ดาวน์โหลดผ่านเว็บได้
 from datetime import date, timedelta
 warnings.filterwarnings("ignore")
 
-import matplotlib
+import matplotlib #สร้างกราฟและใส่สี (Colormap) ให้แผนที่ความร้อน
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 from matplotlib.patches import FancyBboxPatch
-from PIL import Image
+from PIL import Image #ไลบรารีสำหรับจัดการแก้ไข/ย่อขยายภาพ (Image Processing)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ESG PDF REPORT GENERATOR
@@ -40,7 +40,7 @@ def generate_esg_pdf(
     lst_rgb: np.ndarray, seg_mask: np.ndarray, rgb_array: np.ndarray,
 ) -> bytes:
     """สร้าง ESG PDF Report จากผลวิเคราะห์ UHI"""
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4 #สร้างไฟล์ PDF แบบจัดหน้ากระดาษได้ละเอียด
     from reportlab.lib import colors
     from reportlab.lib.units import cm
     from reportlab.platypus import (
@@ -52,12 +52,13 @@ def generate_esg_pdf(
     import io as _io
 
     buf = _io.BytesIO()
-    doc = SimpleDocTemplate(
+    # ตั้งค่าหน้ากระดาษเป็นขนาด A4 และกำหนดขอบกระดาษ (Margin)
+    doc = SimpleDocTemplate( 
         buf, pagesize=A4,
         leftMargin=2*cm, rightMargin=2*cm,
         topMargin=2*cm, bottomMargin=2*cm,
     )
-
+    # ตั้งค่า style format ล่วงหน้า
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("title", parent=styles["Title"],
                                   fontSize=16, spaceAfter=6, alignment=TA_CENTER)
@@ -496,6 +497,7 @@ st.markdown("""
 # GEE HELPERS
 # ═════════════════════════════════════════════════════════════════════════════
 
+#"ล็อกอิน" เข้าสู่ระบบ Google Earth Engine ผ่าน Python
 @st.cache_resource(show_spinner=False)
 def _gee_init(project: str):
     """
@@ -557,12 +559,14 @@ def fetch_lst_gee(
         [bounds["west"], bounds["south"], bounds["east"], bounds["north"]]
     )
 
+# การจัดการเมฆ (Cloud Masking)
     def _mask_clouds(img):
         qa     = img.select("QA_PIXEL")
         cloud  = qa.bitwiseAnd(1 << 3).eq(0)
         shadow = qa.bitwiseAnd(1 << 4).eq(0)
         return img.updateMask(cloud.And(shadow))
-
+    
+# การแปลงค่าดาวเทียมเป็นเซลเซียส (Digital Number to Celsius) 
     def _to_celsius(img):
         lst_c = (img.select("ST_B10")
                     .multiply(0.00341802)
@@ -658,7 +662,7 @@ def fetch_ndvi_gee(bounds: dict, date_start: str, date_end: str,
             return img.updateMask(
                 qa.bitwiseAnd(1 << 3).eq(0).And(qa.bitwiseAnd(1 << 4).eq(0))
             )
-
+        # ดึงดัชนีพืชพรรณ
         def _ndvi(img):
             nir  = img.select("SR_B5").multiply(0.0000275).add(-0.2)
             red  = img.select("SR_B4").multiply(0.0000275).add(-0.2)
@@ -701,7 +705,7 @@ def fetch_ndvi_gee(bounds: dict, date_start: str, date_end: str,
 MAX_PX = 2048  # display downsample cap
 
 
-def load_geotiff(file_bytes: bytes) -> tuple[np.ndarray, dict]:
+def load_geotiff(file_bytes: bytes) -> tuple[np.ndarray, dict]: #รับไฟล์ GeoTIFF (เช่น ภาพ THEOS-2) ที่ User อัปโหลดเข้ามา แล้วสกัดเอาภาพ RGB ออกมา
     """
     โหลด GeoTIFF → (rgb uint8 H×W×3, bounds WGS-84)
     รองรับ 1-band (panchromatic), 3-band, 4-band (drop alpha)
@@ -712,7 +716,7 @@ def load_geotiff(file_bytes: bytes) -> tuple[np.ndarray, dict]:
     from rasterio.enums import Resampling
     from pyproj import Transformer
 
-    with MemoryFile(file_bytes) as mf:
+    with MemoryFile(file_bytes) as mf: # แปลงพิกัด (CRS)
         with mf.open() as ds:
             H, W = ds.height, ds.width
             crs  = ds.crs
@@ -728,7 +732,7 @@ def load_geotiff(file_bytes: bytes) -> tuple[np.ndarray, dict]:
 
             bounds = dict(west=west, south=south, east=east, north=north)
 
-            # Downsample
+            # Downsample ย่อขนาดภาพ
             scale = min(1.0, MAX_PX / max(H, W))
             oh, ow = max(1, int(H * scale)), max(1, int(W * scale))
 
@@ -742,7 +746,7 @@ def load_geotiff(file_bytes: bytes) -> tuple[np.ndarray, dict]:
                               resampling=Resampling.bilinear)
                 rgb = np.stack([raw] * 3, axis=-1)
 
-    # 2-percentile stretch → uint8
+    # 2-percentile stretch → uint8 ปรับความสว่าง
     rgb = rgb.astype(float)
     for c in range(3):
         mn, mx = np.percentile(rgb[:, :, c], 2), np.percentile(rgb[:, :, c], 98)
@@ -753,10 +757,10 @@ def load_geotiff(file_bytes: bytes) -> tuple[np.ndarray, dict]:
 
     return rgb.astype(np.uint8), bounds
 
-
-def segment_image(rgb: np.ndarray) -> tuple[np.ndarray, dict]:
+#แยกประเภทพื้นที่แบบ 
+def segment_image(rgb: np.ndarray) -> tuple[np.ndarray, dict]:  
     """
-    Rule-based land classification:
+    Rule-based land classification: (การตั้งกฎจากค่าพิกเซล)
       Class 0 — Built-up / Impervious (grey, high brightness)
       Class 1 — Vegetation (green-dominant)
       Class 2 — Water (blue-dominant)
@@ -767,9 +771,10 @@ def segment_image(rgb: np.ndarray) -> tuple[np.ndarray, dict]:
     g = rgb[:, :, 1].astype(float)
     b = rgb[:, :, 2].astype(float)
 
-    veg_mask   = (g > r + 18) & (g > b + 18) & (g > 60)
-    water_mask = (b > r + 18) & (b > g + 8)  & (b > 55)
-
+    veg_mask   = (g > r + 18) & (g > b + 18) & (g > 60) #ถ้าพิกเซลไหนมีค่าสีเขียว (g) สูงกว่าสีแดงและน้ำเงินอย่างชัดเจน -> ตีเป็น ต้นไม้
+    water_mask = (b > r + 18) & (b > g + 8)  & (b > 55) #ถ้าสีน้ำเงิน (b) สูงกว่าเพื่อน -> ตีเป็น น้ำ
+    #นอกนั้นที่เหลือทั้งหมด -> เหมาเป็น สิ่งปลูกสร้าง/ถนน (Built-up)
+    
     seg = np.zeros((H, W), dtype=np.uint8)   # 0 = built-up (default)
     seg[veg_mask]   = 1
     seg[water_mask] = 2
@@ -791,7 +796,7 @@ def segment_image(rgb: np.ndarray) -> tuple[np.ndarray, dict]:
     }
     return colored, stats, seg
 
-
+#เปลี่ยน "ตัวเลขทางวิทยาศาสตร์" ให้เป็น "รูปภาพสี"
 def colorize_lst(arr: np.ndarray, cmap_name: str = "inferno") -> np.ndarray:
     """
     float32 LST array (°C) → uint8 RGBA heatmap
@@ -1079,7 +1084,7 @@ if run_btn:
 
         # ── Step 4: Fetch LST ────────────────────────────────────────────────
         try:
-            lst_raw, gee_info = fetch_lst_gee(
+            lst_raw, gee_info,tile_url = fetch_lst_gee(
                 bounds,
                 str(date_start),
                 str(date_end),
